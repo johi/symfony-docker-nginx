@@ -1,0 +1,71 @@
+version: "3"
+
+volumes:
+    datavolume:
+        driver: local
+
+services:
+    app:
+        container_name: app
+        image: nginx:latest
+        hostname: app
+        ports:
+        - "8080:80"
+        volumes:
+        - ./app:/app
+        - ./nginx.conf:/etc/nginx/conf.d/default.conf
+        links:
+        - php
+        networks:
+        - symfony-docker-nginx
+    php:
+        container_name: php
+        hostname: php
+        build:
+            context: .
+            dockerfile: PhpDockerfile
+        env_file:
+          - .env
+        volumes:
+        - ./app:/app
+        - ./php-ini-overrides.ini:/usr/local/etc/php/conf.d/php-ini-overrides.ini
+        - ./opcache.ini:/usr/local/etc/php/conf.d/opcache.ini
+        depends_on:
+        - postgres
+        links:
+        - postgres
+        networks:
+        - symfony-docker-nginx
+    postgres:
+        container_name: postgres
+        image: postgres
+        hostname: postgres
+        restart: always
+        environment:
+            POSTGRES_PASSWORD: develop123
+            POSTGRES_USER: develop
+            POSTGRES_DB: demo
+        ports:
+        - "5432:5432"
+        volumes:
+        - datavolume:/var/lib/postgresql/data
+        networks:
+        - symfony-docker-nginx
+    composer:
+        image: composer
+        volumes:
+        - ./app:/app
+        working_dir: /app
+    mailhog:
+        container_name: mailhog
+        build:
+            context: .
+            dockerfile: MailhogDockerfile
+        ports:
+        - "8025:8025"
+        - "1025:1025"
+        networks:
+        - symfony-docker-nginx
+networks:
+    symfony-docker-nginx:
+        external: true
